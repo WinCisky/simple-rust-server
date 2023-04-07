@@ -22,9 +22,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             interval.tick().await;
 
             let mut clients = clients_ref.lock().await;
+            let clients_number = clients.len();
             clients.retain(|_, client| client.last_message.elapsed() < Duration::from_secs(5));
-
-            println!("client disconnected, number of clients: {}", clients.len());
+            if clients.len() != clients_number {
+                println!("clients disconnected, number of clients: {}", clients.len());
+            }
         }
     });
 
