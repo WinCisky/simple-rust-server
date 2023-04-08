@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let clients_number = clients.len();
             clients.retain(|_, client| client.last_message.elapsed() < Duration::from_secs(5));
             if clients.len() != clients_number {
-                println!("clients disconnected, number of clients: {}", clients.len());
+                println!("disconnected, number of clients: {}", clients.len());
             }
         }
     });
@@ -42,10 +42,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let _ = socket.send_to(&buf[0..n], &addr).await;
                 }
                 UPDATE_POSITION if n >= 10 => {
-                    let pos_x = u32::from_be_bytes([buf[1], buf[2], buf[3], buf[4]]);
-                    let pos_y = u32::from_be_bytes([buf[5], buf[6], buf[7], buf[8]]);
+                    let pos_x = f32::from_be_bytes([buf[1], buf[2], buf[3], buf[4]]);
+                    let pos_y = f32::from_be_bytes([buf[5], buf[6], buf[7], buf[8]]);
 
                     let mut clients = clients_ref.lock().await;
+                    let client_count = clients.len();
                     let client = clients.entry(addr).or_insert(Client {
                         addr,
                         pos_x,
@@ -67,6 +68,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             let _ = socket.send_to(&buf, &addr).await;
                         }
                     }
+
+                    let new_client_count = clients.len();
+                    if new_client_count != client_count {
+                        println!("connected, number of clients: {}", new_client_count);
+                    }
                 }
                 _ => {} // Ignore other cases
             }
@@ -76,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 struct Client {
     addr: SocketAddr,
-    pos_x: u32,
-    pos_y: u32,
+    pos_x: f32,
+    pos_y: f32,
     last_message: Instant,
 }
