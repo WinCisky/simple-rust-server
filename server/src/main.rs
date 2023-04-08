@@ -39,11 +39,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::spawn(async move {
             match buf[0] {
                 PING => {
+                    // println!("received ping from client {}", addr);
                     let _ = socket.send_to(&buf[0..n], &addr).await;
                 }
                 UPDATE_POSITION if n >= 10 => {
-                    let pos_x = f32::from_be_bytes([buf[1], buf[2], buf[3], buf[4]]);
-                    let pos_y = f32::from_be_bytes([buf[5], buf[6], buf[7], buf[8]]);
+                    let pos_x = f32::from_le_bytes([buf[1], buf[2], buf[3], buf[4]]);
+                    let pos_y = f32::from_le_bytes([buf[5], buf[6], buf[7], buf[8]]);
+                    // println!("received pos ({},{}) from client {}", pos_x, pos_y, addr);
 
                     let mut clients = clients_ref.lock().await;
                     let client_count = clients.len();
@@ -59,13 +61,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     client.last_message = Instant::now();
 
                     // Send positions to other clients
+                    let mut buf = [UPDATE_POSITION, 0, 0, 0, 0, 0, 0, 0, 0];
+                    let bytes = pos_x.to_le_bytes();
+                    buf[1..5].copy_from_slice(&bytes);
+                    let bytes = pos_y.to_le_bytes();
+                    buf[5..9].copy_from_slice(&bytes);
                     for other_client in clients.values() {
                         if other_client.addr != addr {
-                            let mut buf = [UPDATE_POSITION, 0, 0, 0, 0, 0, 0, 0, 0];
-                            buf[1..5].copy_from_slice(&other_client.pos_x.to_be_bytes());
-                            buf[5..9].copy_from_slice(&other_client.pos_y.to_be_bytes());
-
-                            let _ = socket.send_to(&buf, &addr).await;
+                            // println!("sending pos ({},{}) to client {}", pos_x, pos_y, other_client.addr);
+                            let _ = socket.send_to(&buf, &other_client.addr).await;
                         }
                     }
 
