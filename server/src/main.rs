@@ -11,9 +11,9 @@ const UPDATE_POSITION: u8 = 0x02;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let socket = Arc::new(UdpSocket::bind("127.0.0.1:8080").await?);
+    let socket = Arc::new(UdpSocket::bind("0.0.0.0:1234").await?);
     let clients: Arc<Mutex<HashMap<SocketAddr, Client>>> = Arc::new(Mutex::new(HashMap::new()));
-    let mut id: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
+    let id: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
 
     // Spawn the cleanup task
     let clients_ref = clients.clone();

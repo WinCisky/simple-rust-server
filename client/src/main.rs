@@ -8,7 +8,7 @@ const UPDATE_POSITION: u8 = 0x02;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let socket = UdpSocket::bind("127.0.0.1:0").await?;
-    socket.connect("127.0.0.1:8080").await?;
+    socket.connect("127.0.0.1:1234").await?;
     let mut rng = rand::thread_rng();
 
     let mut interval = interval(Duration::from_secs(1));
