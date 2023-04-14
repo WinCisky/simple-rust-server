@@ -15,6 +15,7 @@ use tokio::sync::Mutex;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:1234").await?);
     let clients: Arc<Mutex<HashMap<SocketAddr, Client>>> = Arc::new(Mutex::new(HashMap::new()));
+    let entities: Arc<Mutex<HashMap<u32, Entity>>> = Arc::new(Mutex::new(HashMap::new()));
     let id: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
 
     // Spawn the cleanup task
@@ -43,4 +44,13 @@ struct Client {
     level: u8,
     user_id: u32,
     last_message: Instant,
+}
+
+struct Entity {
+    pos_x: f32,
+    pos_y: f32,
+    level: u8,
+    id: u32,
+    user_id: u32,
+    health: u8,
 }
