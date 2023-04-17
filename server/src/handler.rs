@@ -2,12 +2,19 @@ use tokio::{net::UdpSocket, sync::Mutex};
 use std::sync::Arc;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::time::Instant;
 
-use crate::Client;
+use crate::{Client, Entity};
+use crate::messages::ping::handle_ping;
+use crate::messages::position::handle_update_position;
 
-const PING: u8 = 0x01;
-const UPDATE_POSITION: u8 = 0x02;
+pub const PING: u8 = 0x01;
+pub const UPDATE_POSITION: u8 = 0x02;
+// pub const ENTITY_SPAWN: u8 = 0x03;
+// pub const ENTITY_FOLLOW: u8 = 0x04;
+// pub const ENTITY_UNFOLLOW: u8 = 0x05;
+// pub const ENTITY_MOVE: u8 = 0x06;
+// pub const ENTITY_HURT: u8 = 0x07;
+// pub const ENTITY_DESTROY: u8 = 0x08;
 
 pub(crate) async fn handle_message(
     buf: [u8;1024], 
@@ -15,63 +22,15 @@ pub(crate) async fn handle_message(
     socket: Arc<UdpSocket>, 
     addr: SocketAddr, 
     id: Arc<Mutex<u32>>,
-    clients: Arc<Mutex<HashMap<SocketAddr, Client>>>
+    clients: Arc<Mutex<HashMap<SocketAddr, Client>>>,
+    entities: Arc<Mutex<HashMap<u32, Entity>>>,
 ) {
     match buf[0] {
         PING => {
-            // println!("received ping from client {}", addr);
-            let _ = socket.send_to(&buf[0..msg_len], &addr).await;
+            handle_ping(buf, msg_len, socket, addr).await;
         }
         UPDATE_POSITION if msg_len >= 10 => {
-            let pos_x = f32::from_le_bytes([buf[1], buf[2], buf[3], buf[4]]);
-            let pos_y = f32::from_le_bytes([buf[5], buf[6], buf[7], buf[8]]);
-            let level = buf[9];
-            // println!("received pos ({},{}) from client {}", pos_x, pos_y, addr);
-            let mut taskid = id.lock().await;
-            let user_id = *taskid;
-
-            let mut clients = clients.lock().await;
-            let client_count = clients.len();
-            let client = clients.entry(addr).or_insert(Client {
-                addr,
-                pos_x,
-                pos_y,
-                level,
-                user_id,
-                last_message: Instant::now(),
-            });
-
-            client.pos_x = pos_x;
-            client.pos_y = pos_y;
-            client.last_message = Instant::now();
-            client.level = level;
-            let user_id = client.user_id;
-
-            // Send positions to other clients
-            let mut buf = [UPDATE_POSITION, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            let bytes = pos_x.to_le_bytes();
-            buf[1..5].copy_from_slice(&bytes);
-            let bytes = pos_y.to_le_bytes();
-            buf[5..9].copy_from_slice(&bytes);
-            let bytes = user_id.to_le_bytes();
-            buf[9..13].copy_from_slice(&bytes);
-
-            for other_client in clients.values() {
-                // should divide clients based on level
-                let same_level = other_client.level == level;
-                if same_level && other_client.addr != addr {
-                    // println!("sending pos ({},{}) to client {}", pos_x, pos_y, other_client.addr);
-                    let _ = socket.send_to(&buf, &other_client.addr).await;
-                }
-            }
-
-            let new_client_count = clients.len();
-            if new_client_count != client_count {
-                println!("connected, number of clients: {}", new_client_count);
-                // increase id value
-                *taskid += 1;
-                drop(taskid);
-            }
+            handle_update_position(buf, socket, addr, id, clients).await;
         }
         _ => {} // Ignore other cases
     }

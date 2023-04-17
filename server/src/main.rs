@@ -1,5 +1,7 @@
 mod handler;
 mod cleaner;
+mod spawner;
+mod messages;
 
 use handler::handle_message;
 use cleaner::remove_inactive_clients;
@@ -14,14 +16,20 @@ use tokio::sync::Mutex;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:1234").await?);
-    let clients: Arc<Mutex<HashMap<SocketAddr, Client>>> = Arc::new(Mutex::new(HashMap::new()));
-    let entities: Arc<Mutex<HashMap<u32, Entity>>> = Arc::new(Mutex::new(HashMap::new()));
-    let id: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
+    let clients = Arc::new(Mutex::new(HashMap::new()));
+    let entities: Arc<Mutex<HashMap<u32, Entity>>>  = Arc::new(Mutex::new(HashMap::new()));
+    let id = Arc::new(Mutex::new(0));
 
     // Spawn the cleanup task
     let clients_ref = clients.clone();
     tokio::spawn(async move {
         remove_inactive_clients(clients_ref).await;
+    });
+    // Spawn the spawner task
+    let clients_ref = clients.clone();
+    let entities_ref = entities.clone();
+    tokio::spawn(async move {
+        spawner::spawn_entities(clients_ref, entities_ref).await;
     });
 
     loop {
@@ -31,8 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let id = id.clone();
 
         let clients_ref = clients.clone();
+        let entities_ref = entities.clone();
         tokio::spawn(async move {
-            handle_message(buf, n, socket, addr, id, clients_ref).await;
+            handle_message(buf, n, socket, addr, id, clients_ref, entities_ref).await;
         });
     }
 }
@@ -46,6 +55,7 @@ struct Client {
     last_message: Instant,
 }
 
+#[derive(Clone)]
 struct Entity {
     pos_x: f32,
     pos_y: f32,
