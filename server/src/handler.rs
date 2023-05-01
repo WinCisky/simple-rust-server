@@ -3,18 +3,18 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 
-use crate::{Client, Entity};
+use crate::structs::{Client, Entity};
 use crate::messages::ping::handle_ping;
-use crate::messages::position::handle_update_position;
+use crate::messages::position::handle_move;
+use crate::messages::entities::handle_follow;
 
 pub const PING: u8 = 0x01;
-pub const UPDATE_POSITION: u8 = 0x02;
-// pub const ENTITY_SPAWN: u8 = 0x03;
-// pub const ENTITY_FOLLOW: u8 = 0x04;
-// pub const ENTITY_UNFOLLOW: u8 = 0x05;
-// pub const ENTITY_MOVE: u8 = 0x06;
-// pub const ENTITY_HURT: u8 = 0x07;
-// pub const ENTITY_DESTROY: u8 = 0x08;
+pub const MOVE: u8 = 0x02;
+pub const FOLLOW: u8 = 0x3;
+pub const UNFOLLOW: u8 = 0x04;
+pub const ATTACK: u8 = 0x05; //animation
+pub const HIT: u8 = 0x06;
+pub const DIE: u8 = 0x07;
 
 pub(crate) async fn handle_message(
     buf: [u8;1024], 
@@ -29,9 +29,15 @@ pub(crate) async fn handle_message(
         PING => {
             handle_ping(buf, msg_len, socket, addr).await;
         }
-        UPDATE_POSITION if msg_len >= 10 => {
-            handle_update_position(buf, socket, addr, id, clients).await;
+        MOVE => {
+            handle_move(buf, socket, addr, id, clients).await;
         }
+        FOLLOW => {
+            handle_follow(buf, socket, addr, clients, entities).await;
+        }
+        ATTACK => {}
+        HIT => {}
+        DIE => {}
         _ => {} // Ignore other cases
     }
 }

@@ -1,5 +1,5 @@
-use crate::Client;
-use crate::handler::UPDATE_POSITION;
+use crate::structs::Client;
+use crate::handler::MOVE;
 
 use tokio::{net::UdpSocket, sync::Mutex};
 use std::sync::Arc;
@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Instant;
 
-pub(crate) async fn handle_update_position(
+pub(crate) async fn handle_move(
     buf: [u8; 1024],
     socket: Arc<UdpSocket>,
     addr: SocketAddr,
@@ -55,7 +55,7 @@ async fn send_update_position(
     old_client_count: usize,
 ) {
     // Send positions to other clients
-    let mut buf = [UPDATE_POSITION, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let mut buf = [MOVE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let bytes = pos_x.to_le_bytes();
     buf[1..5].copy_from_slice(&bytes);
     let bytes = pos_y.to_le_bytes();
@@ -79,6 +79,9 @@ async fn send_update_position(
         // increase id value
         let mut taskid = id.lock().await;
         *taskid += 1;
+        if *taskid == u32::MAX {
+            *taskid = 1;
+        }
         drop(taskid);
     }
 }

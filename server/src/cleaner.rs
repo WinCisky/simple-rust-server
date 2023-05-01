@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 
 use tokio::time::interval;
 
-use crate::Client;
+use crate::structs::Client;
 
 pub(crate) async fn remove_inactive_clients(clients: Arc<Mutex<HashMap<SocketAddr, Client>>>) {
     let mut interval = interval(Duration::from_secs(5));
